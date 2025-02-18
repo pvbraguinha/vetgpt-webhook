@@ -8,6 +8,12 @@ app = FastAPI()
 # Configurar a chave da OpenAI (no Railway, configure como variável OPENAI_API_KEY)
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
+# Endpoint de Health Check
+@app.get("/")
+async def read_root():
+    return {"message": "App is alive!"}
+
+# Endpoint para o webhook
 @app.post("/webhook", response_class=PlainTextResponse)
 async def webhook(request: Request):
     # Twilio envia os dados como form-data, então usamos request.form()
