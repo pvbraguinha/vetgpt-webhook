@@ -18,16 +18,16 @@ async def webhook(request: Request):
         return "Nenhuma mensagem recebida."
 
     try:
-        response = openai.ChatCompletion.create(
-            model="gpt-4-turbo",
-            messages=[
-                {"role": "system", "content": "Você é um assistente veterinário que fornece informações úteis."},
-                {"role": "user", "content": user_message}
-            ]
-        )
-        reply = response["choices"][0]["message"]["content"]
-    except Exception as e:
-        reply = "Erro ao processar a mensagem."
+    response = openai.ChatCompletion.create(
+        model="gpt-4-turbo",
+        messages=[
+            {"role": "system", "content": "Você é um assistente veterinário que fornece informações úteis."},
+            {"role": "user", "content": user_message}
+        ]
+    )
+    reply = response["choices"][0]["message"]["content"]
+except Exception as e:
+    reply = f"Erro ao processar a mensagem: {str(e)}"
     
     return reply
 
