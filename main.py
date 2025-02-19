@@ -27,7 +27,7 @@ async def webhook(request: Request):
         response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": "Você é um assistente veterinário que fornece informações úteis."},
+                {"role": "system", "content": "Você é um assistente veterinário altamente qualificado. Responda com precisão técnica e profissional, fornecendo diagnósticos, tratamentos e orientações detalhadas, como um veterinário faria durante uma consulta presencial."},
                 {"role": "user", "content": user_message}
             ]
         )
