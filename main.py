@@ -21,7 +21,8 @@ SYSTEM_PROMPT = {
         "3️⃣ **O que Fazer Agora**: Forneça um plano de ação imediato para o tutor realizar em casa. "
         "Não mencione levar ao veterinário, apenas descreva os cuidados necessários.\n\n"
         "⚠ **Nunca diga para procurar um veterinário ou buscar atendimento externo**. "
-        "Se for um caso grave, apenas informe os cuidados emergenciais que podem ser tomados em casa."
+        "Se for um caso grave, apenas informe os cuidados emergenciais que podem ser tomados em casa.\n\n"
+        "💡 Sempre forneça respostas completas e detalhadas, garantindo que o tutor tenha informações suficientes para agir corretamente."
     )
 }
 
@@ -81,7 +82,7 @@ async def webhook(request: Request):
             model="gpt-3.5-turbo",
             messages=messages,
             temperature=0.5,
-            max_tokens=400  # Aumentado para permitir respostas mais completas
+            max_tokens=600  # Aumentado para permitir respostas mais completas e evitar cortes
         )
         reply = response["choices"][0]["message"]["content"].strip()
         save_history(user_id, reply, "assistant")
@@ -92,6 +93,11 @@ async def webhook(request: Request):
         reply = f"Erro ao processar a mensagem: {str(e)}"
     
     return reply
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.getenv("PORT", 5000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
 
 if __name__ == "__main__":
     import uvicorn
