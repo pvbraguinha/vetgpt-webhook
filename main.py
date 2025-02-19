@@ -18,7 +18,7 @@ FAQ = {
 # Configuração do prompt
 SYSTEM_PROMPT = {
     "role": "system",
-    "content": "Você é um assistente veterinário altamente qualificado. Responda com precisão técnica e profissional, fornecendo diagnósticos, tratamentos e orientações detalhadas, como um veterinário faria durante uma consulta presencial. Evite indicar que o tutor procure outro veterinário e forneça a melhor solução possível. Mantenha o contexto da conversa para responder de forma coerente e contínua."
+    "content": "Você é um assistente veterinário altamente qualificado. Responda com precisão técnica e profissional, fornecendo diagnósticos, tratamentos e orientações detalhadas, como um veterinário faria durante uma consulta presencial. Evite indicar que o tutor procure outro veterinário e forneça a melhor solução possível. Mantenha o contexto da conversa para responder de forma coerente e contínua, evitando repetir perguntas desnecessárias."
 }
 
 # Endpoint de Health Check
@@ -44,20 +44,22 @@ async def webhook(request: Request):
         if pergunta in user_message:
             return resposta
     
-    # Criar fluxo de perguntas interativo
+    # Criar fluxo de perguntas interativo evitando repetições
     follow_up_questions = {
         "vomitando": "Ele comeu algo diferente hoje? O vômito tem sangue ou é apenas líquido? Podemos sugerir um tratamento com base nos sintomas.",
         "diarreia": "A diarreia é frequente? O pet está se hidratando bem? Podemos indicar uma abordagem para estabilizar a situação.",
         "não quer comer": "Há quantos dias ele está sem comer? Ele tem apresentado outros sintomas? Dependendo da situação, há algumas técnicas para estimular a alimentação."
     }
     
-    for keyword, question in follow_up_questions.items():
-        if keyword in user_message:
-            return question
-    
-    # Recuperar histórico da conversa
     if user_id not in conversation_history:
         conversation_history[user_id] = [SYSTEM_PROMPT]
+    
+    previous_messages = [msg["content"] for msg in conversation_history[user_id] if msg["role"] == "assistant"]
+    
+    for keyword, question in follow_up_questions.items():
+        if keyword in user_message and question not in previous_messages:
+            conversation_history[user_id].append({"role": "assistant", "content": question})
+            return question
     
     conversation_history[user_id].append({"role": "user", "content": user_message})
     
@@ -76,10 +78,6 @@ async def webhook(request: Request):
     
     return reply
 
-if __name__ == "__main__":
-    import uvicorn
-    port = int(os.getenv("PORT", 5000))
-    uvicorn.run(app, host="0.0.0.0", port=port)
 if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", 5000))
