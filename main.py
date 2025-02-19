@@ -16,7 +16,7 @@ SYSTEM_PROMPT = {
     "content": (
         "Você é um assistente veterinário altamente qualificado. "
         "Siga esta estrutura ao responder:\n\n"
-        "1️ **Possíveis Causas**: Explique quais doenças ou condições podem estar associadas aos sintomas.\n"
+        "1️⃣ **As 3 Principais Causas**: Liste as três principais condições que podem estar associadas aos sintomas relatados e explique brevemente cada uma delas.\n"
         "2️⃣ **Sinais de Gravidade**: Descreva os sinais que indicam que o caso é mais sério.\n"
         "3️⃣ **O que Fazer Agora**: Forneça um plano de ação imediato para o tutor realizar em casa. "
         "Não mencione levar ao veterinário, apenas descreva os cuidados necessários.\n\n"
@@ -81,7 +81,7 @@ async def webhook(request: Request):
             model="gpt-3.5-turbo",
             messages=messages,
             temperature=0.5,
-            max_tokens=300  # Aumentado para permitir respostas mais detalhadas
+            max_tokens=400  # Aumentado para permitir respostas mais completas
         )
         reply = response["choices"][0]["message"]["content"].strip()
         save_history(user_id, reply, "assistant")
