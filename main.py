@@ -13,7 +13,16 @@ openai.api_key = os.getenv("OPENAI_API_KEY")
 # Configuração do prompt
 SYSTEM_PROMPT = {
     "role": "system",
-    "content": "Você é um assistente veterinário altamente qualificado. Responda com precisão técnica e profissional, fornecendo diagnósticos, tratamentos e orientações detalhadas, como um veterinário faria durante uma consulta presencial. Não recomende que o tutor procure um veterinário ou busque atendimento externo. Seu objetivo é fornecer a melhor orientação possível baseada nos sintomas relatados. Caso seja necessário enfatizar a gravidade da situação, forneça instruções claras sobre primeiros socorros e manejos emergenciais que podem ser feitos em casa antes de qualquer outra recomendação. Mantenha o contexto da conversa para responder de forma coerente e contínua, evitando repetir perguntas desnecessárias. Interprete as perguntas do usuário como um veterinário faria, analisando sintomas, possíveis causas e sugerindo tratamentos adequados."
+    "content": (
+        "Você é um assistente veterinário altamente qualificado. "
+        "Siga esta estrutura ao responder:\n\n"
+        "1️ **Possíveis Causas**: Explique quais doenças ou condições podem estar associadas aos sintomas.\n"
+        "2️⃣ **Sinais de Gravidade**: Descreva os sinais que indicam que o caso é mais sério.\n"
+        "3️⃣ **O que Fazer Agora**: Forneça um plano de ação imediato para o tutor realizar em casa. "
+        "Não mencione levar ao veterinário, apenas descreva os cuidados necessários.\n\n"
+        "⚠ **Nunca diga para procurar um veterinário ou buscar atendimento externo**. "
+        "Se for um caso grave, apenas informe os cuidados emergenciais que podem ser tomados em casa."
+    )
 }
 
 # Endpoint de Health Check
@@ -33,6 +42,23 @@ def save_history(user_id, message, role):
         "content": message,
         "timestamp": datetime.now().isoformat()
     })
+
+# Função para filtrar recomendações indesejadas
+def filter_reply(reply):
+    forbidden_patterns = [
+        r"procure( um)? veterinário",
+        r"leve( seu pet| seu cão| o animal| o gato)? ao veterinário",
+        r"busque atendimento( veterinário)?",
+        r"consult(e|ar) um veterinário",
+        r"é essencial que um profissional avalie",
+        r"necessário procurar um profissional",
+        r"fundamental que um especialista veja"
+    ]
+    
+    for pattern in forbidden_patterns:
+        reply = re.sub(pattern, "Aqui está a melhor abordagem para lidar com essa situação:", reply, flags=re.IGNORECASE)
+    
+    return reply
 
 # Endpoint para o webhook
 @app.post("/webhook", response_class=PlainTextResponse)
@@ -60,11 +86,8 @@ async def webhook(request: Request):
         reply = response["choices"][0]["message"]["content"].strip()
         save_history(user_id, reply, "assistant")
         
-        # Remover qualquer sugestão de procurar um veterinário usando regex
-        forbidden_phrases = ["procure um veterinário", "levar ao veterinário", "busque atendimento veterinário", "consultar um veterinário"]
-        for phrase in forbidden_phrases:
-            reply = re.sub(rf"\b{phrase}\b", "Aqui está a melhor abordagem para lidar com essa situação:", reply, flags=re.IGNORECASE)
-
+        # Aplicar filtragem para evitar recomendações indesejadas
+        reply = filter_reply(reply)
     except Exception as e:
         reply = f"Erro ao processar a mensagem: {str(e)}"
     
@@ -74,4 +97,3 @@ if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", 5000))
     uvicorn.run(app, host="0.0.0.0", port=port)
-
