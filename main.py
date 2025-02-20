@@ -1,4 +1,4 @@
-api import FastAPI, Request
+from fastapi import FastAPI, Request
 from fastapi.responses import PlainTextResponse
 import openai
 import os
