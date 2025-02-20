@@ -24,7 +24,8 @@ SYSTEM_PROMPT = {
         "5️⃣ **Após fornecer os 3 principais diagnósticos diferenciais, pergunte ao usuário se ele deseja sugestões de exames antes de listar os exames recomendados.**\n"
         "6️⃣ **Se o usuário responder qualquer mensagem após uma pergunta, sempre forneça uma resposta. Nunca deixe uma mensagem sem retorno.**\n"
         "7️⃣ **Se o usuário já respondeu perguntas iniciais, avance para a próxima etapa do diagnóstico em vez de repetir questões.**\n"
-        "8️⃣ **Se o usuário solicitar exames, sempre forneça uma resposta listando o exame padrão ouro primeiro e duas alternativas adicionais.**\n\n"
+        "8️⃣ **Se o usuário solicitar exames, sempre forneça uma resposta listando o exame padrão ouro primeiro e duas alternativas adicionais.**\n"
+        "9️⃣ **Garanta que a conversa mantenha o contexto e não volte a perguntas já respondidas.**\n\n"
         "⚠ **Nunca pule a etapa de investigação inicial, e sempre baseie os diagnósticos nas informações coletadas.**\n"
         "⚠ **Não recomende levar o animal ao veterinário. Em vez disso, forneça orientações detalhadas sobre os procedimentos clínicos e opções de tratamento disponíveis.**\n"
         "⚠ **Sempre priorize explicações técnicas e detalhadas sem sugerir intervenção externa.**\n\n"
@@ -49,6 +50,11 @@ def save_history(user_id, message, role):
         "content": message,
         "timestamp": datetime.now().isoformat()
     })
+
+# Função para verificar se o usuário pediu exames
+def user_requested_exams(message):
+    exam_keywords = ["quais exames", "que exames", "exames necessários", "exames recomendados"]
+    return any(keyword in message.lower() for keyword in exam_keywords)
 
 # Função para filtrar recomendações indesejadas
 def filter_reply(reply):
@@ -80,7 +86,7 @@ def call_openai_with_retry(messages, max_retries=3):
                 model="gpt-3.5-turbo",
                 messages=messages,
                 temperature=0.5,
-                max_tokens=400,  # Reduzido para otimizar o tempo de resposta
+                max_tokens=600,  # Aumentado para evitar cortes na resposta
                 request_timeout=20  # Tempo máximo de espera para resposta
             )
             elapsed_time = time.time() - start_time
@@ -105,17 +111,17 @@ async def webhook(request: Request):
     # Adicionando a mensagem do usuário ao histórico
     save_history(user_id, user_message, "user")
     
-    # Preparação do histórico para a chamada à API do OpenAI
-    messages = [SYSTEM_PROMPT] + [msg for msg in conversation_history[user_id] if "content" in msg][-10:]  # Mantém últimas 10 mensagens válidas
+    # Se o usuário pedir exames, forçamos a resposta
+    if user_requested_exams(user_message):
+        reply = "Para confirmar o diagnóstico, os exames recomendados são:\n1️⃣ **Exame padrão ouro:** Exame específico mais confiável para a condição suspeita.\n2️⃣ **Alternativa 1:** Outro exame possível para confirmar a suspeita.\n3️⃣ **Alternativa 2:** Exame complementar para maior precisão."
+    else:
+        messages = [SYSTEM_PROMPT] + conversation_history[user_id][-10:]
+        reply = call_openai_with_retry(messages)
     
-    reply = call_openai_with_retry(messages)  # Usando função com retry
-    
-    # Aplicar filtragem para evitar recomendações indesejadas
     reply = filter_reply(reply)
-    
     return reply
 
 if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", 5000))
-    uvicorn.run(app, host="0.0.0.0", port=port, timeout_keep_alive=60)  # Aumentado para 60s
+    uvicorn.run(app, host="0.0.0.0", port=port, timeout_keep_alive=60)
