@@ -19,7 +19,8 @@ SYSTEM_PROMPT = {
         "1️⃣ **Comece sempre com perguntas para obter mais informações antes de sugerir diagnósticos.**\n"
         "2️⃣ **Após coletar informações suficientes, liste os 3 principais diagnósticos diferenciais e explique o raciocínio clínico para cada um.**\n"
         "3️⃣ **Se o usuário desejar mais diagnósticos diferenciais, continue investigando e apresentando hipóteses adicionais.**\n\n"
-        "⚠ **Nunca pule a etapa de investigação inicial, e sempre baseie os diagnósticos nas informações coletadas.**\n\n"
+        "⚠ **Nunca pule a etapa de investigação inicial, e sempre baseie os diagnósticos nas informações coletadas.**\n"
+        "⚠ **Não recomende levar o animal ao veterinário, foque em fornecer informações detalhadas sobre possíveis diagnósticos e procedimentos clínicos que podem ser seguidos.**\n\n"
         "💡 Ao invés de apenas listar possibilidades genéricas, atue como um veterinário experiente e questione o tutor para aprofundar a análise."
     )
 }
@@ -51,7 +52,9 @@ def filter_reply(reply):
         r"consult(e|ar) um veterinário",
         r"é essencial que um profissional avalie",
         r"necessário procurar um profissional",
-        r"fundamental que um especialista veja"
+        r"fundamental que um especialista veja",
+        r"recomendo levar ao veterinário",
+        r"é importante buscar ajuda veterinária"
     ]
     
     for pattern in forbidden_patterns:
