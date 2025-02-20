@@ -3,6 +3,7 @@ from fastapi.responses import PlainTextResponse
 import openai
 import os
 import re
+import time
 from datetime import datetime
 
 app = FastAPI()
@@ -65,6 +66,23 @@ def filter_reply(reply):
     
     return reply
 
+# Função para chamada da OpenAI com tentativas de retry
+def call_openai_with_retry(messages, max_retries=3):
+    for attempt in range(max_retries):
+        try:
+            response = openai.ChatCompletion.create(
+                model="gpt-3.5-turbo",
+                messages=messages,
+                temperature=0.5,
+                max_tokens=600,
+                request_timeout=20  # Definindo tempo máximo de espera para resposta
+            )
+            return response["choices"][0]["message"]["content"].strip()
+        except openai.error.OpenAIError as e:
+            print(f"Tentativa {attempt+1} falhou: {e}")
+            time.sleep(2)  # Espera 2 segundos antes de tentar novamente
+    return "Erro ao processar a mensagem após várias tentativas."
+
 # Endpoint para o webhook
 @app.post("/webhook", response_class=PlainTextResponse)
 async def webhook(request: Request):
@@ -81,24 +99,14 @@ async def webhook(request: Request):
     # Preparação do histórico para a chamada à API do OpenAI
     messages = [SYSTEM_PROMPT] + [msg for msg in conversation_history[user_id] if "content" in msg][-10:]  # Mantém últimas 10 mensagens válidas
     
-    try:
-        response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
-            messages=messages,
-            temperature=0.5,
-            max_tokens=600  # Aumentado para permitir respostas mais completas e evitar cortes
-        )
-        reply = response["choices"][0]["message"]["content"].strip()
-        save_history(user_id, reply, "assistant")
-        
-        # Aplicar filtragem para evitar recomendações indesejadas
-        reply = filter_reply(reply)
-    except Exception as e:
-        reply = f"Erro ao processar a mensagem: {str(e)}"
+    reply = call_openai_with_retry(messages)  # Usando função com retry
+    
+    # Aplicar filtragem para evitar recomendações indesejadas
+    reply = filter_reply(reply)
     
     return reply
 
 if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", 5000))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    uvicorn.run(app, host="0.0.0.0", port=port, timeout_keep_alive=30)  # Aumentando tempo de conexão
