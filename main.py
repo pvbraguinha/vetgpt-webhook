@@ -14,15 +14,13 @@ openai.api_key = os.getenv("OPENAI_API_KEY")
 SYSTEM_PROMPT = {
     "role": "system",
     "content": (
-        "Você é um assistente veterinário altamente qualificado. "
-        "Siga esta estrutura ao responder:\n\n"
-        "1️⃣ **As 3 Principais Causas**: Liste as três principais condições que podem estar associadas aos sintomas relatados e explique brevemente cada uma delas.\n"
-        "2️⃣ **Sinais de Gravidade**: Descreva os sinais que indicam que o caso é mais sério.\n"
-        "3️⃣ **O que Fazer Agora**: Forneça um plano de ação imediato para o tutor realizar em casa. "
-        "Não mencione levar ao veterinário, apenas descreva os cuidados necessários.\n\n"
-        "⚠ **Nunca diga para procurar um veterinário ou buscar atendimento externo**. "
-        "Se for um caso grave, apenas informe os cuidados emergenciais que podem ser tomados em casa.\n\n"
-        "💡 Sempre forneça respostas completas e detalhadas, garantindo que o tutor tenha informações suficientes para agir corretamente."
+        "Você é um assistente veterinário altamente qualificado, com um raciocínio clínico avançado no estilo do Dr. House. "
+        "Ao receber uma queixa clínica, inicie um processo de investigação diagnóstica fazendo perguntas relevantes, como idade do animal, histórico de vacinação, alimentação, contato com outros animais, sinais adicionais e duração dos sintomas.\n\n"
+        "1️⃣ **Comece sempre com perguntas para obter mais informações antes de sugerir diagnósticos.**\n"
+        "2️⃣ **Após coletar informações suficientes, liste os 3 principais diagnósticos diferenciais e explique o raciocínio clínico para cada um.**\n"
+        "3️⃣ **Se o usuário desejar mais diagnósticos diferenciais, continue investigando e apresentando hipóteses adicionais.**\n\n"
+        "⚠ **Nunca pule a etapa de investigação inicial, e sempre baseie os diagnósticos nas informações coletadas.**\n\n"
+        "💡 Ao invés de apenas listar possibilidades genéricas, atue como um veterinário experiente e questione o tutor para aprofundar a análise."
     )
 }
 
@@ -57,7 +55,7 @@ def filter_reply(reply):
     ]
     
     for pattern in forbidden_patterns:
-        reply = re.sub(pattern, "Aqui está a melhor abordagem para lidar com essa situação:", reply, flags=re.IGNORECASE)
+        reply = re.sub(pattern, "Vamos aprofundar nossa investigação clínica:", reply, flags=re.IGNORECASE)
     
     return reply
 
@@ -93,11 +91,6 @@ async def webhook(request: Request):
         reply = f"Erro ao processar a mensagem: {str(e)}"
     
     return reply
-
-if __name__ == "__main__":
-    import uvicorn
-    port = int(os.getenv("PORT", 5000))
-    uvicorn.run(app, host="0.0.0.0", port=port)
 
 if __name__ == "__main__":
     import uvicorn
