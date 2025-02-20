@@ -69,21 +69,25 @@ def filter_reply(reply):
     
     return reply
 
-# Função para chamada da OpenAI com tentativas de retry
+# Função para chamada da OpenAI com tentativas de retry e log de tempo
 def call_openai_with_retry(messages, max_retries=3):
     for attempt in range(max_retries):
         try:
+            start_time = time.time()
             response = openai.ChatCompletion.create(
                 model="gpt-3.5-turbo",
                 messages=messages,
                 temperature=0.5,
-                max_tokens=600,
-                request_timeout=20  # Definindo tempo máximo de espera para resposta
+                max_tokens=400,  # Reduzido para otimizar o tempo de resposta
+                request_timeout=20  # Tempo máximo de espera para resposta
             )
+            elapsed_time = time.time() - start_time
+            print(f"Tempo de resposta da OpenAI: {elapsed_time:.2f} segundos")
             return response["choices"][0]["message"]["content"].strip()
         except openai.error.OpenAIError as e:
-            print(f"Tentativa {attempt+1} falhou: {e}")
-            time.sleep(2)  # Espera 2 segundos antes de tentar novamente
+            wait_time = 2 ** attempt  # Exponencial backoff (2s, 4s, 8s...)
+            print(f"Tentativa {attempt+1} falhou: {e}. Tentando novamente em {wait_time} segundos...")
+            time.sleep(wait_time)
     return "Erro ao processar a mensagem após várias tentativas."
 
 # Endpoint para o webhook
@@ -112,4 +116,4 @@ async def webhook(request: Request):
 if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", 5000))
-    uvicorn.run(app, host="0.0.0.0", port=port, timeout_keep_alive=30)  # Aumentando tempo de conexão
+    uvicorn.run(app, host="0.0.0.0", port=port, timeout_keep_alive=60)  # Aumentado para 60s
