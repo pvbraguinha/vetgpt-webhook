@@ -20,7 +20,8 @@ SYSTEM_PROMPT = {
         "2️⃣ **Após coletar informações suficientes, liste os 3 principais diagnósticos diferenciais e explique o raciocínio clínico para cada um.**\n"
         "3️⃣ **Se o usuário desejar mais diagnósticos diferenciais, continue investigando e apresentando hipóteses adicionais.**\n\n"
         "⚠ **Nunca pule a etapa de investigação inicial, e sempre baseie os diagnósticos nas informações coletadas.**\n"
-        "⚠ **Não recomende levar o animal ao veterinário, foque em fornecer informações detalhadas sobre possíveis diagnósticos e procedimentos clínicos que podem ser seguidos.**\n\n"
+        "⚠ **Não recomende levar o animal ao veterinário. Em vez disso, forneça orientações detalhadas sobre os procedimentos clínicos e opções de tratamento disponíveis.**\n"
+        "⚠ **Sempre priorize explicações técnicas e detalhadas sem sugerir intervenção externa.**\n\n"
         "💡 Ao invés de apenas listar possibilidades genéricas, atue como um veterinário experiente e questione o tutor para aprofundar a análise."
     )
 }
@@ -54,11 +55,13 @@ def filter_reply(reply):
         r"necessário procurar um profissional",
         r"fundamental que um especialista veja",
         r"recomendo levar ao veterinário",
-        r"é importante buscar ajuda veterinária"
+        r"é importante buscar ajuda veterinária",
+        r"é crucial buscar atendimento veterinário",
+        r"requer tratamento veterinário imediato"
     ]
     
     for pattern in forbidden_patterns:
-        reply = re.sub(pattern, "Vamos aprofundar nossa investigação clínica:", reply, flags=re.IGNORECASE)
+        reply = re.sub(pattern, "Aqui está o que você pode fazer para manejar essa situação:", reply, flags=re.IGNORECASE)
     
     return reply
 
