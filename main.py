@@ -4,14 +4,14 @@ import openai
 import os
 import re
 import time
-from datetime import datetime
 import logging
+from datetime import datetime
 from typing import Dict, List
 import asyncio
 
 # Configuração de logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
-logger = logging.getLogger(_name_)
+logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
@@ -77,14 +77,7 @@ def filter_reply(reply: str) -> str:
         r"procure( um)? veterinário",
         r"leve( seu pet| seu cão| o animal| o gato)? ao veterinário",
         r"busque atendimento( veterinário)?",
-        r"consult(e|ar) um veterinário",
-        r"é essencial que um profissional avalie",
-        r"necessário procurar um profissional",
-        r"fundamental que um especialista veja",
-        r"recomendo levar ao veterinário",
-        r"é importante buscar ajuda veterinária",
-        r"é crucial buscar atendimento veterinário",
-        r"requer tratamento veterinário imediato"
+        r"consult(e|ar) um veterinário"
     ]
     for pattern in forbidden_patterns:
         reply = re.sub(pattern, "Aqui está o que você pode fazer para manejar essa situação:", reply, flags=re.IGNORECASE)
@@ -94,67 +87,38 @@ async def call_openai_with_retry(messages: List[dict], max_retries: int = 3) -> 
     for attempt in range(max_retries):
         try:
             start_time = time.time()
-            # Ajuste dinâmico de max_tokens com base no tamanho da entrada
-            input_tokens = sum(len(msg["content"]) for msg in messages) // 4  # Estimativa aproximada
-            max_tokens = max(600, 4096 - input_tokens - 100)  # Reserva espaço para resposta
+            max_tokens = min(1000, 4096 - sum(len(msg["content"]) for msg in messages) // 4 - 100)
             response = openai.ChatCompletion.create(
                 model="gpt-3.5-turbo",
                 messages=messages,
                 temperature=0.5,
                 max_tokens=max_tokens,
-                request_timeout=30  # Aumentado para 30 segundos
+                request_timeout=30
             )
             elapsed_time = time.time() - start_time
             logger.info(f"Tempo de resposta da OpenAI: {elapsed_time:.2f} segundos")
             return response["choices"][0]["message"]["content"].strip()
-        except openai.error.RateLimitError as e:
-            wait_time = 2 ** attempt
-            logger.warning(f"Rate limit atingido: {e}. Tentando novamente em {wait_time} segundos...")
-            await asyncio.sleep(wait_time)
         except openai.error.OpenAIError as e:
-            wait_time = 2 ** attempt
-            logger.error(f"Erro na OpenAI (tentativa {attempt+1}): {e}. Tentando novamente em {wait_time} segundos...")
-            await asyncio.sleep(wait_time)
-    logger.error("Erro ao processar a mensagem após várias tentativas.")
-    return "Desculpe, não consegui processar sua solicitação no momento. Tente novamente mais tarde."
+            await asyncio.sleep(2 ** attempt)
+    return "Erro ao processar a mensagem após várias tentativas."
 
 @app.post("/webhook", response_class=PlainTextResponse)
 async def webhook(request: Request):
-    try:
-        form_data = await request.form()
-        user_message = form_data.get("Body") or ""
-        user_message = user_message.strip().lower()
-        user_id = form_data.get("From", "unknown")
+    form_data = await request.form()
+    user_message = form_data.get("Body", "").strip().lower()
+    user_id = form_data.get("From", "unknown")
+    if not user_message:
+        return "Nenhuma mensagem recebida."
+    await save_history(user_id, user_message, "user")
+    async with history_lock:
+        recent_history = conversation_history.get(user_id, [])[-MAX_HISTORY_SIZE:]
+    messages = [SYSTEM_PROMPT] + recent_history
+    reply = await call_openai_with_retry(messages)
+    filtered_reply = filter_reply(reply)
+    await save_history(user_id, filtered_reply, "assistant")
+    return filtered_reply
 
-        if not user_message:
-            logger.info(f"User {user_id} enviou mensagem vazia.")
-            return "Nenhuma mensagem recebida. Por favor, envie uma mensagem válida."
-
-        await save_history(user_id, user_message, "user")
-
-        # Carrega o histórico recente
-        async with history_lock:
-            recent_history = conversation_history.get(user_id, [])[-MAX_HISTORY_SIZE:]
-        
-        messages = [SYSTEM_PROMPT] + recent_history
-        
-        if user_requested_exams(user_message):
-            # Adiciona instrução específica para gerar exames com base no contexto
-            messages.append({
-                "role": "system",
-                "content": "Com base no histórico, forneça os 3 exames mais recomendados, incluindo o exame padrão ouro e duas alternativas."
-            })
-        reply = await call_openai_with_retry(messages)
-        
-        filtered_reply = filter_reply(reply)
-        await save_history(user_id, filtered_reply, "assistant")
-        return filtered_reply
-
-    except Exception as e:
-        logger.error(f"Erro no webhook: {e}")
-        return "Ocorreu um erro ao processar sua mensagem. Tente novamente."
-
-if _name_ == "_main_":
+if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", 5000))
     uvicorn.run(app, host="0.0.0.0", port=port, timeout_keep_alive=60)
